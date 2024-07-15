@@ -88,7 +88,7 @@ class Detect(nn.Module):
         self.m = nn.ModuleList(nn.Conv2d(x, self.no * self.na, 1) for x in ch)  # output conv
         self.inplace = inplace  # use inplace ops (e.g. slice assignment)
 
-    def forward(self, x):
+    def forward_old(self, x):
         """Processes input through YOLOv5 layers, altering shape for detection: `x(bs, 3, ny, nx, 85)`."""
         z = []  # inference output
         for i in range(self.nl):
@@ -114,6 +114,15 @@ class Detect(nn.Module):
 
         return x if self.training else (torch.cat(z, 1),) if self.export else (torch.cat(z, 1), x)
 
+
+    def forward(self, x):
+        z = []  # inference output
+        self.training |= self.export
+        for i in range(self.nl):
+            x[i] = self.m[i](x[i])  # conv
+            x[i] = x[i].sigmoid()
+        return x
+        
     def _make_grid(self, nx=20, ny=20, i=0, torch_1_10=check_version(torch.__version__, "1.10.0")):
         """Generates a mesh grid for anchor boxes with optional compatibility for torch versions < 1.10."""
         d = self.anchors[i].device
